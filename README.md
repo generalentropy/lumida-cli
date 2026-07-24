@@ -3,6 +3,16 @@
 The official [Lumida](https://lumida.app) CLI lets you view a concise health
 summary from your terminal.
 
+## Demo
+
+### Summary
+
+![Lumida CLI displaying a health summary](https://raw.githubusercontent.com/generalentropy/lumida-cli/master/assets/summary.gif)
+
+### Sleep history
+
+![Lumida CLI displaying seven days of sleep history](https://raw.githubusercontent.com/generalentropy/lumida-cli/master/assets/sleep.gif)
+
 ## Requirements
 
 - Node.js 22 or later
