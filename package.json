@@ -1,0 +1,50 @@
+{
+  "name": "lumida-cli",
+  "version": "0.1.0",
+  "description": "Official CLI for viewing your Lumida health summary",
+  "type": "module",
+  "bin": {
+    "lumida": "./dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "lumida",
+    "health",
+    "google-health",
+    "cli"
+  ],
+  "license": "MIT",
+  "preferGlobal": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "start": "node dist/index.mjs",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "pnpm run check && pnpm run test && pnpm run build",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^1.3.0",
+    "commander": "^15.0.0",
+    "open": "^11.0.0",
+    "ora": "^9.4.1",
+    "picocolors": "^1.1.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsdown": "^0.22.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
