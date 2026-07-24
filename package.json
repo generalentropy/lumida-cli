@@ -4,7 +4,7 @@
   "description": "Official CLI for viewing your Lumida health summary",
   "type": "module",
   "bin": {
-    "lumida": "./dist/index.mjs"
+    "lumida": "dist/index.mjs"
   },
   "files": [
     "dist",
