@@ -7,6 +7,7 @@ import { CliError } from "../errors.js";
 import { DEFAULT_SLEEP_DAYS, parseSleepDays } from "../sleep-days.js";
 import type { CommandContextFactory } from "./context.js";
 import { mapHealthApiError } from "./health-error.js";
+import { indent, printSectionHeader } from "./output.js";
 
 type SleepOptions = {
   days: string;
@@ -38,7 +39,7 @@ export function registerSleepCommand(
       try {
         const history = await api.getSleep(accessToken, days);
 
-        spinner.succeed("Sleep history retrieved.");
+        spinner.stop();
         printSleepHistory(history);
       } catch (error: unknown) {
         spinner.fail("Could not retrieve sleep history.");
@@ -56,20 +57,19 @@ export function registerSleepCommand(
 }
 
 function printSleepHistory(history: CliSleepHistory): void {
-  console.log();
-  console.log(pc.bold(pc.cyan("LUMIDA SLEEP")));
-  console.log(pc.dim(`Last ${history.range.days} days`));
-  console.log();
+  printSectionHeader("LUMIDA SLEEP", `Last ${history.range.days} days`);
 
   if (history.sessions.length === 0) {
-    console.log("No sleep sessions found for this period.");
+    console.log(indent("No sleep sessions found for this period."));
     return;
   }
 
   console.log(
-    `${pc.dim("Date".padEnd(14))}${pc.dim("Type".padEnd(8))}${pc.dim(
-      "Duration".padEnd(12),
-    )}${pc.dim("Time")}`,
+    indent(
+      `${pc.dim("Date".padEnd(14))}${pc.dim("Type".padEnd(8))}${pc.dim(
+        "Duration".padEnd(12),
+      )}${pc.dim("Time")}`,
+    ),
   );
 
   for (const session of history.sessions) {
@@ -80,14 +80,16 @@ function printSleepHistory(history: CliSleepHistory): void {
       session.endTime,
     )}`;
 
-    console.log(`${date}${type}${duration}${interval}`);
+    console.log(indent(`${date}${type}${duration}${interval}`));
   }
 
   if (history.partial) {
     console.log();
     console.warn(
-      pc.yellow(
-        "The history is incomplete because the upstream result limit was reached.",
+      indent(
+        pc.yellow(
+          "The history is incomplete because the upstream result limit was reached.",
+        ),
       ),
     );
   }

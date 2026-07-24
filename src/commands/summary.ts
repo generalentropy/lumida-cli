@@ -7,13 +7,15 @@ import { CliError } from "../errors.js";
 import { createSummaryDateRange } from "../summary-date.js";
 import type { CommandContextFactory } from "./context.js";
 import { mapHealthApiError } from "./health-error.js";
+import {
+  CONTENT_INDENT,
+  indent,
+  printSectionHeader,
+} from "./output.js";
 
 type SummaryOptions = {
   date?: string;
 };
-
-const CONTENT_INDENT = "  ";
-const SUMMARY_SEPARATOR = "─".repeat(38);
 
 export function registerSummaryCommand(
   program: Command,
@@ -69,19 +71,15 @@ function printSummary(
   },
   selectedDate?: string,
 ): void {
-  console.log();
-  console.log(`${CONTENT_INDENT}${pc.bold(pc.cyan("LUMIDA"))}`);
-  console.log(
-    `${CONTENT_INDENT}${pc.dim(
-      selectedDate
-        ? formatCivilDate(selectedDate)
-        : new Intl.DateTimeFormat("en", {
-            dateStyle: "full",
-            timeStyle: "short",
-          }).format(new Date(summary.generatedAt)),
-    )}`,
+  printSectionHeader(
+    "LUMIDA",
+    selectedDate
+      ? formatCivilDate(selectedDate)
+      : new Intl.DateTimeFormat("en", {
+          dateStyle: "full",
+          timeStyle: "short",
+        }).format(new Date(summary.generatedAt)),
   );
-  console.log(`${CONTENT_INDENT}${pc.dim(SUMMARY_SEPARATOR)}`);
 
   printRow("Steps", formatNumber(summary.steps));
   printRow("Sleep", formatDuration(summary.sleepMinutes));
@@ -98,7 +96,9 @@ function printSummary(
 
   if (summary.partial) {
     console.log();
-    console.warn(pc.yellow("Some data is incomplete for this period."));
+    console.warn(
+      indent(pc.yellow("Some data is incomplete for this period.")),
+    );
   }
 }
 
