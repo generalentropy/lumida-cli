@@ -21,6 +21,14 @@
     "cli"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/generalentropy/lumida-cli.git"
+  },
+  "homepage": "https://github.com/generalentropy/lumida-cli#readme",
+  "bugs": {
+    "url": "https://github.com/generalentropy/lumida-cli/issues"
+  },
   "preferGlobal": true,
   "publishConfig": {
     "access": "public"
