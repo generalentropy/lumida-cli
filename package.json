@@ -1,6 +1,6 @@
 {
   "name": "lumida-cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Read your Lumida health summaries and sleep history from the terminal, with JSON output for scripting",
   "type": "module",
   "bin": {
