@@ -113,19 +113,23 @@ successfully — not being connected is an answer, not a failure.
 
 ## Sleep trend
 
-`sleep` renders a `Trend` column: one block per night, scaled to the longest
-night of the period. Read down the column, it plots the series without taking
-up width.
+`sleep` renders a `Trend` column: one bar per night, scaled to the longest night
+of the period, so two rows can be compared at a glance.
 
 ```
   Date          Type    Duration    Time                Trend
-  Aug 4, 2026   Sleep   7 h 30 min  11:12 PM – 6:42 AM  █
-  Aug 3, 2026   Sleep   6 h 10 min  12:05 AM – 6:15 AM  ▇
-  Aug 2, 2026   Nap     0 h 45 min  2:30 PM – 3:15 PM   ▁
-  Aug 1, 2026   Sleep   8 h 05 min  10:40 PM – 6:45 AM  █
+  Aug 4, 2026   Sleep   7 h 30 min  11:12 PM – 6:42 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  Aug 3, 2026   Sleep   6 h 10 min  12:05 AM – 6:15 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  Aug 2, 2026   Nap     0 h 45 min  2:30 PM – 3:15 PM   ▄▄▄
+  Aug 1, 2026   Sleep   8 h 05 min  10:40 PM – 6:45 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  Jul 31, 2026  Sleep   5 h 30 min  11:50 PM – 5:20 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  Jul 30, 2026  Sleep   7 h 50 min  11:05 PM – 7:10 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 ```
 
-A night without a measured duration leaves the cell blank rather than guessing.
+Bars are capped at 20 characters so a long series never breaks the layout, and
+a short night keeps a minimum length so it stays readable. A night without a
+measured duration draws nothing at all, which reads as "not measured" rather
+than as a zero.
 
 ## Privacy
 

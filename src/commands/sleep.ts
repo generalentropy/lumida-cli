@@ -3,9 +3,9 @@ import ora from "ora";
 import pc from "picocolors";
 
 import { isUnauthorizedError, type CliSleepHistory } from "../api/client.js";
+import { barScale, renderBar } from "../bar.js";
 import { DEFAULT_SLEEP_DAYS, MAX_SLEEP_DAYS, parseSleepDays } from "../days.js";
 import { CliError } from "../errors.js";
-import { sparkBar, sparkScale } from "../sparkline.js";
 import type { CommandContextFactory } from "./context.js";
 import { mapHealthApiError } from "./health-error.js";
 import { indent, printJson, printSectionHeader } from "./output.js";
@@ -75,9 +75,9 @@ function printSleepHistory(history: CliSleepHistory): void {
     return;
   }
 
-  // Échelle commune à toute la période : la colonne se lit verticalement
-  // comme une courbe, chaque nuit rapportée à la plus longue.
-  const scale = sparkScale(
+  // Échelle commune à toute la période : chaque barre se lit directement,
+  // et les longueurs restent comparables d'une ligne à l'autre.
+  const scale = barScale(
     history.sessions.map((session) => session.minutesAsleep),
   );
 
@@ -96,7 +96,7 @@ function printSleepHistory(history: CliSleepHistory): void {
     const interval = `${formatTime(session.startTime)} – ${formatTime(
       session.endTime,
     )}`.padEnd(20);
-    const trend = sparkBar(session.minutesAsleep, scale);
+    const trend = renderBar(session.minutesAsleep, scale);
 
     console.log(indent(`${date}${type}${duration}${interval}${trend}`));
   }
