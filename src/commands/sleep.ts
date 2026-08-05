@@ -3,14 +3,16 @@ import ora from "ora";
 import pc from "picocolors";
 
 import { isUnauthorizedError, type CliSleepHistory } from "../api/client.js";
+import { DEFAULT_SLEEP_DAYS, MAX_SLEEP_DAYS, parseSleepDays } from "../days.js";
 import { CliError } from "../errors.js";
-import { DEFAULT_SLEEP_DAYS, parseSleepDays } from "../sleep-days.js";
+import { sparkBar, sparkScale } from "../sparkline.js";
 import type { CommandContextFactory } from "./context.js";
 import { mapHealthApiError } from "./health-error.js";
-import { indent, printSectionHeader } from "./output.js";
+import { indent, printJson, printSectionHeader } from "./output.js";
 
 type SleepOptions = {
   days: string;
+  json?: boolean;
 };
 
 export function registerSleepCommand(
@@ -22,9 +24,10 @@ export function registerSleepCommand(
     .description("Show your sleep history")
     .option(
       "-d, --days <number>",
-      "Number of days to retrieve, from 1 to 365",
+      `Number of days to retrieve, from 1 to ${MAX_SLEEP_DAYS}`,
       String(DEFAULT_SLEEP_DAYS),
     )
+    .option("--json", "Print the raw response as JSON")
     .action(async (options: SleepOptions) => {
       const days = parseSleepDays(options.days);
       const { api, credentials } = getContext();
@@ -34,15 +37,23 @@ export function registerSleepCommand(
         throw new CliError("You are not connected. Run lumida login first.");
       }
 
-      const spinner = ora(`Fetching ${days} days of sleep history…`).start();
+      const spinner = options.json
+        ? null
+        : ora(`Fetching ${days} days of sleep history…`).start();
 
       try {
         const history = await api.getSleep(accessToken, days);
 
-        spinner.stop();
+        spinner?.stop();
+
+        if (options.json) {
+          printJson(history);
+          return;
+        }
+
         printSleepHistory(history);
       } catch (error: unknown) {
-        spinner.fail("Could not retrieve sleep history.");
+        spinner?.fail("Could not retrieve sleep history.");
 
         if (isUnauthorizedError(error)) {
           await credentials.delete();
@@ -64,11 +75,17 @@ function printSleepHistory(history: CliSleepHistory): void {
     return;
   }
 
+  // Échelle commune à toute la période : la colonne se lit verticalement
+  // comme une courbe, chaque nuit rapportée à la plus longue.
+  const scale = sparkScale(
+    history.sessions.map((session) => session.minutesAsleep),
+  );
+
   console.log(
     indent(
       `${pc.dim("Date".padEnd(14))}${pc.dim("Type".padEnd(8))}${pc.dim(
         "Duration".padEnd(12),
-      )}${pc.dim("Time")}`,
+      )}${pc.dim("Time".padEnd(20))}${pc.dim("Trend")}`,
     ),
   );
 
@@ -78,9 +95,10 @@ function printSleepHistory(history: CliSleepHistory): void {
     const duration = formatDuration(session.minutesAsleep).padEnd(12);
     const interval = `${formatTime(session.startTime)} – ${formatTime(
       session.endTime,
-    )}`;
+    )}`.padEnd(20);
+    const trend = sparkBar(session.minutesAsleep, scale);
 
-    console.log(indent(`${date}${type}${duration}${interval}`));
+    console.log(indent(`${date}${type}${duration}${interval}${trend}`));
   }
 
   if (history.partial) {

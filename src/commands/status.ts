@@ -4,6 +4,11 @@ import pc from "picocolors";
 import { isUnauthorizedError } from "../api/client.js";
 import { CliError } from "../errors.js";
 import type { CommandContextFactory } from "./context.js";
+import { printJson } from "./output.js";
+
+type StatusOptions = {
+  json?: boolean;
+};
 
 export function registerStatusCommand(
   program: Command,
@@ -12,17 +17,28 @@ export function registerStatusCommand(
   program
     .command("status")
     .description("Show the Lumida connection status")
-    .action(async () => {
+    .option("--json", "Print the raw response as JSON")
+    .action(async (options: StatusOptions) => {
       const { api, credentials } = getContext();
       const accessToken = await credentials.read();
 
       if (!accessToken) {
+        if (options.json) {
+          printJson({ connected: false });
+          return;
+        }
+
         console.log("Not connected. Run lumida login.");
         return;
       }
 
       try {
         const status = await api.getStatus(accessToken);
+
+        if (options.json) {
+          printJson({ connected: true, ...status });
+          return;
+        }
 
         console.log();
         console.log(pc.bold(pc.cyan("LUMIDA")));

@@ -1,7 +1,7 @@
 {
   "name": "lumida-cli",
   "version": "0.1.1",
-  "description": "Official CLI for viewing your Lumida health summary",
+  "description": "Read your Lumida health summaries and sleep history from the terminal, with JSON output for scripting",
   "type": "module",
   "bin": {
     "lumida": "dist/index.mjs"
@@ -18,7 +18,10 @@
     "lumida",
     "health",
     "google-health",
-    "cli"
+    "cli",
+    "sleep",
+    "terminal",
+    "json"
   ],
   "license": "MIT",
   "repository": {

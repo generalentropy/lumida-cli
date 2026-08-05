@@ -129,10 +129,13 @@ describe("LumidaApiClient", () => {
     );
 
     await api.getSummary("secret-session-token", {
-      date: "2026-07-01",
-      from: "2026-07-01T00:00:00+02:00",
-      to: "2026-07-02T00:00:00+02:00",
-      timeZone: "Europe/Paris",
+      kind: "date",
+      range: {
+        date: "2026-07-01",
+        from: "2026-07-01T00:00:00+02:00",
+        to: "2026-07-02T00:00:00+02:00",
+        timeZone: "Europe/Paris",
+      },
     });
 
     const url = new URL(String(capturedUrl));
@@ -174,12 +177,75 @@ describe("LumidaApiClient", () => {
 
     await expect(
       api.getSummary("secret-session-token", {
-        date: "2026-07-01",
-        from: "2026-07-01T00:00:00+02:00",
-        to: "2026-07-02T00:00:00+02:00",
-        timeZone: "Europe/Paris",
+        kind: "date",
+        range: {
+          date: "2026-07-01",
+          from: "2026-07-01T00:00:00+02:00",
+          to: "2026-07-02T00:00:00+02:00",
+          timeZone: "Europe/Paris",
+        },
       }),
     ).rejects.toThrow(/requested calendar day/);
+  });
+
+  it("requests a rolling summary window without other parameters", async () => {
+    let capturedUrl: string | URL | Request | undefined;
+    const api = createApiClient(
+      new URL("https://lumida.app"),
+      (async (input: string | URL | Request) => {
+        capturedUrl = input;
+
+        return Response.json({
+          generatedAt: "2026-07-24T12:00:00.000Z",
+          range: {
+            from: "2026-07-17T12:00:00.000Z",
+            to: "2026-07-24T12:00:00.000Z",
+            days: 7,
+          },
+          partial: false,
+          steps: 52_000,
+          sleepMinutes: 3_100,
+          averageHeartRate: 64,
+          restingHeartRate: 51,
+          heartRateVariabilityMilliseconds: 62,
+          oxygenSaturationPercent: 97,
+        });
+      }) as typeof fetch,
+    );
+
+    await api.getSummary("secret-session-token", { kind: "days", days: 7 });
+
+    const url = new URL(String(capturedUrl));
+
+    expect(url.pathname).toBe("/api/cli/summary");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ days: "7" });
+  });
+
+  it("rejects a summary covering a different period than requested", async () => {
+    const api = createApiClient(
+      new URL("https://lumida.app"),
+      vi.fn(async () =>
+        Response.json({
+          generatedAt: "2026-07-24T12:00:00.000Z",
+          range: {
+            from: "2026-07-23T12:00:00.000Z",
+            to: "2026-07-24T12:00:00.000Z",
+            days: 1,
+          },
+          partial: false,
+          steps: 7_437,
+          sleepMinutes: 513,
+          averageHeartRate: 65,
+          restingHeartRate: 52,
+          heartRateVariabilityMilliseconds: 60,
+          oxygenSaturationPercent: 97,
+        }),
+      ) as typeof fetch,
+    );
+
+    await expect(
+      api.getSummary("secret-session-token", { kind: "days", days: 7 }),
+    ).rejects.toThrow(/requested period/);
   });
 
   it("rejects a server response with an unexpected shape", async () => {

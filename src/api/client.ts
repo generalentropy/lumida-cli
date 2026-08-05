@@ -129,6 +129,15 @@ export type DeviceTokenResult =
   | { ok: true; token: DeviceToken }
   | { ok: false; error: DeviceTokenError };
 
+/**
+ * Période d'un résumé : une journée civile locale explicite, ou une fenêtre
+ * glissante de N jours. Sans sélection, le serveur renvoie les dernières
+ * vingt-quatre heures.
+ */
+export type SummarySelection =
+  | { kind: "date"; range: SummaryDateRange }
+  | { kind: "days"; days: number };
+
 export interface ApiClient {
   requestDeviceAuthorization(): Promise<DeviceAuthorization>;
   requestDeviceToken(
@@ -138,7 +147,7 @@ export interface ApiClient {
   getStatus(accessToken: string): Promise<CliStatus>;
   getSummary(
     accessToken: string,
-    dateRange?: SummaryDateRange,
+    selection?: SummarySelection,
   ): Promise<CliSummary>;
   getSleep(accessToken: string, days: number): Promise<CliSleepHistory>;
   logout(accessToken: string): Promise<void>;
@@ -217,31 +226,28 @@ class LumidaApiClient implements ApiClient {
 
   async getSummary(
     accessToken: string,
-    dateRange?: SummaryDateRange,
+    selection?: SummarySelection,
   ): Promise<CliSummary> {
-    const searchParams = dateRange
-      ? new URLSearchParams({
-          date: dateRange.date,
-          from: dateRange.from,
-          to: dateRange.to,
-          time_zone: dateRange.timeZone,
-        })
-      : null;
-    const path = searchParams
-      ? `/api/cli/summary?${searchParams.toString()}`
-      : "/api/cli/summary";
-
     const summary = await this.#requestJson(
-      path,
+      summaryPath(selection),
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       },
       cliSummarySchema,
     );
 
-    if (dateRange && !matchesRequestedDateRange(summary, dateRange)) {
+    if (
+      selection?.kind === "date" &&
+      !matchesRequestedDateRange(summary, selection.range)
+    ) {
       throw new CliError(
         "Lumida did not return the requested calendar day. The server may need to be updated.",
+      );
+    }
+
+    if (selection?.kind === "days" && summary.range.days !== selection.days) {
+      throw new CliError(
+        "Lumida did not return the requested period. The server may need to be updated.",
       );
     }
 
@@ -348,6 +354,24 @@ function parseResponse<T>(schema: z.ZodType<T>, value: unknown): T {
   }
 
   return parsed.data;
+}
+
+function summaryPath(selection?: SummarySelection): string {
+  if (!selection) {
+    return "/api/cli/summary";
+  }
+
+  const searchParams =
+    selection.kind === "days"
+      ? new URLSearchParams({ days: String(selection.days) })
+      : new URLSearchParams({
+          date: selection.range.date,
+          from: selection.range.from,
+          to: selection.range.to,
+          time_zone: selection.range.timeZone,
+        });
+
+  return `/api/cli/summary?${searchParams.toString()}`;
 }
 
 function assertTrustedVerificationUrl(value: string, baseUrl: URL): void {

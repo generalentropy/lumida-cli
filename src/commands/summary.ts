@@ -2,7 +2,9 @@ import type { Command } from "commander";
 import ora from "ora";
 import pc from "picocolors";
 
+import type { CliSummary, SummarySelection } from "../api/client.js";
 import { isUnauthorizedError } from "../api/client.js";
+import { MAX_SUMMARY_DAYS, parseSummaryDays } from "../days.js";
 import { CliError } from "../errors.js";
 import { createSummaryDateRange } from "../summary-date.js";
 import type { CommandContextFactory } from "./context.js";
@@ -10,12 +12,33 @@ import { mapHealthApiError } from "./health-error.js";
 import {
   CONTENT_INDENT,
   indent,
+  printJson,
   printSectionHeader,
 } from "./output.js";
 
 type SummaryOptions = {
   date?: string;
+  days?: string;
+  json?: boolean;
 };
+
+function resolveSelection(
+  options: SummaryOptions,
+): SummarySelection | undefined {
+  if (options.date !== undefined && options.days !== undefined) {
+    throw new CliError("--date and --days cannot be combined.");
+  }
+
+  if (options.date !== undefined) {
+    return { kind: "date", range: createSummaryDateRange(options.date) };
+  }
+
+  if (options.days !== undefined) {
+    return { kind: "days", days: parseSummaryDays(options.days) };
+  }
+
+  return undefined;
+}
 
 export function registerSummaryCommand(
   program: Command,
@@ -25,10 +48,13 @@ export function registerSummaryCommand(
     .command("summary")
     .description("Show a health summary")
     .option("--date <date>", "Calendar date in YYYY-MM-DD format")
+    .option(
+      "-d, --days <number>",
+      `Number of days to summarize, from 1 to ${MAX_SUMMARY_DAYS}`,
+    )
+    .option("--json", "Print the raw response as JSON")
     .action(async (options: SummaryOptions) => {
-      const dateRange = options.date
-        ? createSummaryDateRange(options.date)
-        : undefined;
+      const selection = resolveSelection(options);
       const { api, credentials } = getContext();
       const accessToken = await credentials.read();
 
@@ -36,15 +62,23 @@ export function registerSummaryCommand(
         throw new CliError("You are not connected. Run lumida login first.");
       }
 
-      const spinner = ora("Fetching your health summary…").start();
+      const spinner = options.json
+        ? null
+        : ora("Fetching your health summary…").start();
 
       try {
-        const summary = await api.getSummary(accessToken, dateRange);
+        const summary = await api.getSummary(accessToken, selection);
 
-        spinner.stop();
-        printSummary(summary, dateRange?.date);
+        spinner?.stop();
+
+        if (options.json) {
+          printJson(summary);
+          return;
+        }
+
+        printSummary(summary, selection);
       } catch (error: unknown) {
-        spinner.fail("Could not retrieve the health summary.");
+        spinner?.fail("Could not retrieve the health summary.");
 
         if (isUnauthorizedError(error)) {
           await credentials.delete();
@@ -59,27 +93,10 @@ export function registerSummaryCommand(
 }
 
 function printSummary(
-  summary: {
-    generatedAt: string;
-    partial: boolean;
-    steps: number;
-    sleepMinutes: number | null;
-    averageHeartRate: number | null;
-    restingHeartRate: number | null;
-    heartRateVariabilityMilliseconds: number | null;
-    oxygenSaturationPercent: number | null;
-  },
-  selectedDate?: string,
+  summary: CliSummary,
+  selection: SummarySelection | undefined,
 ): void {
-  printSectionHeader(
-    "LUMIDA",
-    selectedDate
-      ? formatCivilDate(selectedDate)
-      : new Intl.DateTimeFormat("en", {
-          dateStyle: "full",
-          timeStyle: "short",
-        }).format(new Date(summary.generatedAt)),
-  );
+  printSectionHeader("LUMIDA", formatPeriod(summary, selection));
 
   printRow("Steps", formatNumber(summary.steps));
   printRow("Sleep", formatDuration(summary.sleepMinutes));
@@ -100,6 +117,24 @@ function printSummary(
       indent(pc.yellow("Some data is incomplete for this period.")),
     );
   }
+}
+
+function formatPeriod(
+  summary: CliSummary,
+  selection: SummarySelection | undefined,
+): string {
+  if (selection?.kind === "date") {
+    return formatCivilDate(selection.range.date);
+  }
+
+  if (selection?.kind === "days") {
+    return `Last ${selection.days} days`;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "full",
+    timeStyle: "short",
+  }).format(new Date(summary.generatedAt));
 }
 
 function formatCivilDate(value: string): string {

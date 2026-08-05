@@ -19,7 +19,7 @@ function createProgram(): Command {
 
   program
     .name("lumida")
-    .description("View your Lumida health summary from the terminal")
+    .description("Read your Lumida health data from the terminal")
     .version(packageJson.version)
     .showHelpAfterError();
 
