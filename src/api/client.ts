@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { CliError } from "../errors.js";
+import { sanitizeServerText } from "../sanitize.js";
 import type { SummaryDateRange } from "../summary-date.js";
 
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -10,11 +11,26 @@ const apiErrorSchema = z.object({
   error_description: z.string().optional(),
 });
 
+// Le code est affiché tel quel dans le terminal : on le restreint à
+// l'alphabet du générateur du serveur plutôt qu'à une longueur.
+const userCodeSchema = z
+  .string()
+  .min(8)
+  .max(16)
+  .regex(/^[A-Z0-9-]+$/u);
+
+// `z.url()` accepte une URL contenant des caractères de contrôle bruts. On ne
+// conserve donc que la forme normalisée, qui les encode en pourcentage, car
+// c'est cette chaîne qui est imprimée et ouverte dans le navigateur.
+const verificationUrlSchema = z
+  .url()
+  .transform((value) => new URL(value).href);
+
 const deviceAuthorizationSchema = z.object({
   device_code: z.string().min(20).max(512),
-  user_code: z.string().min(8).max(16),
-  verification_uri: z.url(),
-  verification_uri_complete: z.url(),
+  user_code: userCodeSchema,
+  verification_uri: verificationUrlSchema,
+  verification_uri_complete: verificationUrlSchema,
   expires_in: z.number().int().positive().max(3_600),
   interval: z.number().int().min(1).max(60),
 });
@@ -367,14 +383,16 @@ function matchesRequestedDateRange(
 
 function toApiError(response: Response, body: unknown): ApiError {
   const parsed = apiErrorSchema.safeParse(body);
-  const code = parsed.success ? parsed.data.error : undefined;
+  const code = parsed.success
+    ? sanitizeServerText(parsed.data.error ?? "")
+    : "";
   const description = parsed.success
-    ? parsed.data.error_description
-    : undefined;
+    ? sanitizeServerText(parsed.data.error_description ?? "")
+    : "";
 
   return new ApiError(
     description || code || `Lumida returned HTTP error ${response.status}.`,
     response.status,
-    code,
+    code || undefined,
   );
 }

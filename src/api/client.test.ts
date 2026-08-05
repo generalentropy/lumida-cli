@@ -213,4 +213,71 @@ describe("LumidaApiClient", () => {
       /unexpected domain/,
     );
   });
+
+  it("strips terminal escape sequences from a server error message", async () => {
+    const escape = String.fromCodePoint(0x1b);
+    const api = createApiClient(
+      new URL("https://lumida.app"),
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: "INVALID_DAYS",
+            error_description: `${escape}[2Jdays must be an integer`,
+          },
+          { status: 400 },
+        ),
+      ) as typeof fetch,
+    );
+
+    await expect(api.getSleep("secret-session-token", 7)).rejects.toThrow(
+      /days must be an integer/,
+    );
+    await expect(
+      api.getSleep("secret-session-token", 7),
+    ).rejects.not.toThrow(new RegExp(escape));
+  });
+
+  it("normalizes a verification URL carrying control characters", async () => {
+    const escape = String.fromCodePoint(0x1b);
+    const api = createApiClient(
+      new URL("https://lumida.app"),
+      vi.fn(async () =>
+        Response.json({
+          device_code: "device-code-with-enough-characters",
+          user_code: "ABCD2345",
+          verification_uri: "https://lumida.app/device",
+          verification_uri_complete: `https://lumida.app/device?user_code=${escape}[2J`,
+          expires_in: 600,
+          interval: 5,
+        }),
+      ) as typeof fetch,
+    );
+
+    const authorization = await api.requestDeviceAuthorization();
+
+    expect(authorization.verification_uri_complete).not.toContain(escape);
+    expect(authorization.verification_uri_complete).toContain("%1B");
+  });
+
+  it("rejects a user code outside the server alphabet", async () => {
+    const escape = String.fromCodePoint(0x1b);
+    const api = createApiClient(
+      new URL("https://lumida.app"),
+      vi.fn(async () =>
+        Response.json({
+          device_code: "device-code-with-enough-characters",
+          user_code: `AB${escape}[31mCD1234`,
+          verification_uri: "https://lumida.app/device",
+          verification_uri_complete:
+            "https://lumida.app/device?user_code=ABCD2345",
+          expires_in: 600,
+          interval: 5,
+        }),
+      ) as typeof fetch,
+    );
+
+    await expect(api.requestDeviceAuthorization()).rejects.toThrow(
+      /unexpected response/,
+    );
+  });
 });

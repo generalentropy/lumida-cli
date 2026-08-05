@@ -12,6 +12,7 @@ import { registerStatusCommand } from "./commands/status.js";
 import { registerSummaryCommand } from "./commands/summary.js";
 import { getApiBaseUrl } from "./config.js";
 import { CliError, toErrorMessage } from "./errors.js";
+import { sanitizeServerText } from "./sanitize.js";
 
 function createProgram(): Command {
   const program = new Command();
@@ -53,7 +54,10 @@ async function main(): Promise<void> {
     const message =
       error instanceof CliError ? error.message : toErrorMessage(error);
 
-    console.error(`Error: ${message}`);
+    // Dernière barrière avant le terminal : les messages construits par le CLI
+    // sont sûrs, mais une erreur peut aussi venir du serveur ou d'une
+    // dépendance.
+    console.error(`Error: ${sanitizeServerText(message)}`);
     process.exitCode = 1;
   }
 }
