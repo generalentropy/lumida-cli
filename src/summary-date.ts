@@ -11,7 +11,8 @@ export function createSummaryDateRange(
   value: string,
   now = new Date(),
 ): SummaryDateRange {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const resolved = resolveRelativeDate(value, now);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(resolved);
 
   if (!match) {
     throw invalidDateError();
@@ -40,11 +41,48 @@ export function createSummaryDateRange(
   const to = new Date(year, month - 1, day + 1, 0, 0, 0, 0);
 
   return {
-    date: value,
+    date: resolved,
     from: toIsoWithLocalOffset(from),
     to: toIsoWithLocalOffset(to),
     timeZone,
   };
+}
+
+/** Décalage en jours de chaque forme relative acceptée, avant résolution. */
+const RELATIVE_DAYS_AGO = new Map([
+  ["today", 0],
+  ["yesterday", 1],
+]);
+
+/**
+ * Résout `today` et `yesterday` en jour civil local, et laisse passer tout le
+ * reste vers la validation habituelle.
+ *
+ * Un script planifié n'a ainsi plus à calculer la veille lui-même : `date`
+ * l'écrit `-d yesterday` sur GNU et `-v-1d` sur BSD, donc la seule commande
+ * dont une tâche cron a besoin tous les jours n'était pas portable.
+ *
+ * Aucune forme préfixée d'un tiret, `-3d` par exemple : commander la lirait
+ * comme une option plutôt que comme la valeur de `--date`.
+ */
+function resolveRelativeDate(value: string, now: Date): string {
+  const daysAgo = RELATIVE_DAYS_AGO.get(value.trim().toLowerCase());
+
+  if (daysAgo === undefined) {
+    return value;
+  }
+
+  const target = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - daysAgo,
+  );
+
+  const year = target.getFullYear().toString().padStart(4, "0");
+  const month = (target.getMonth() + 1).toString().padStart(2, "0");
+  const day = target.getDate().toString().padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function toIsoWithLocalOffset(date: Date): string {
@@ -66,6 +104,6 @@ function toIsoWithLocalOffset(date: Date): string {
 
 function invalidDateError(): CliError {
   return new CliError(
-    "--date must be a valid, non-future date in YYYY-MM-DD format.",
+    "--date must be today, yesterday, or a valid, non-future date in YYYY-MM-DD format.",
   );
 }

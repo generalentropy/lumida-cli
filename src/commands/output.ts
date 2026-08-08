@@ -8,6 +8,11 @@ export function printSectionHeader(title: string, subtitle: string): void {
   console.log();
   console.log(indent(pc.bold(pc.cyan(title))));
   console.log(indent(pc.dim(subtitle)));
+  printSeparator();
+}
+
+/** Même filet que l'en-tête, pour fermer une section sur ses agrégats. */
+export function printSeparator(): void {
   console.log(indent(pc.dim(SECTION_SEPARATOR)));
 }
 

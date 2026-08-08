@@ -6,9 +6,15 @@ import { isUnauthorizedError, type CliSleepHistory } from "../api/client.js";
 import { barScale, renderBar } from "../bar.js";
 import { DEFAULT_SLEEP_DAYS, MAX_SLEEP_DAYS, parseSleepDays } from "../days.js";
 import { CliError } from "../errors.js";
+import { summarizeSleep } from "../sleep-summary.js";
 import type { CommandContextFactory } from "./context.js";
 import { mapHealthApiError } from "./health-error.js";
-import { indent, printJson, printSectionHeader } from "./output.js";
+import {
+  indent,
+  printJson,
+  printSectionHeader,
+  printSeparator,
+} from "./output.js";
 
 type SleepOptions = {
   days: string;
@@ -101,6 +107,12 @@ function printSleepHistory(history: CliSleepHistory): void {
     console.log(indent(`${date}${type}${duration}${interval}${trend}`));
   }
 
+  // Une seule journée demandée n'a pas de période à résumer : le tableau dit
+  // déjà tout ce que le pied répéterait.
+  if (history.range.days > 1) {
+    printSleepFooter(history);
+  }
+
   if (history.partial) {
     console.log();
     console.warn(
@@ -111,6 +123,35 @@ function printSleepHistory(history: CliSleepHistory): void {
       ),
     );
   }
+}
+
+/**
+ * Largeur des colonnes `Date` et `Type` réunies : la valeur d'un agrégat tombe
+ * ainsi exactement sous la colonne `Duration` du tableau.
+ */
+const FOOTER_LABEL_WIDTH = 22;
+
+function printSleepFooter(history: CliSleepHistory): void {
+  const { averageMinutes, recordedNights, naps } = summarizeSleep(
+    history.sessions,
+  );
+
+  printSeparator();
+  printFooterRow("Average night", formatDuration(averageMinutes));
+  printFooterRow(
+    "Nights recorded",
+    `${recordedNights} of ${history.range.days}`,
+  );
+
+  if (naps > 0) {
+    printFooterRow("Naps", String(naps));
+  }
+}
+
+function printFooterRow(label: string, value: string): void {
+  console.log(
+    indent(`${pc.dim(label.padEnd(FOOTER_LABEL_WIDTH))}${pc.bold(value)}`),
+  );
 }
 
 function formatDate(value: string): string {

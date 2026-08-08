@@ -43,10 +43,7 @@ export function registerStatusCommand(
         console.log();
         console.log(pc.bold(pc.cyan("LUMIDA")));
         printRow("Account", status.account.email);
-        printRow(
-          "CLI session",
-          `valid until ${formatDateTime(status.session.expiresAt)}`,
-        );
+        printRow("CLI session", formatSessionExpiry(status.session.expiresAt));
         printRow(
           "Google Health",
           formatGoogleHealthStatus(status.googleHealth),
@@ -81,6 +78,27 @@ function formatGoogleHealthStatus(status: {
   }
 
   return pc.yellow("not connected");
+}
+
+/**
+ * Seuil à partir duquel l'expiration cesse d'être une information neutre. Une
+ * session CLI dure sept jours : passer sous les vingt-quatre heures, c'est la
+ * dernière fois où `status` peut prévenir avant qu'un script planifié échoue.
+ */
+export const EXPIRY_WARNING_MS = 24 * 60 * 60 * 1_000;
+
+export function formatSessionExpiry(
+  expiresAt: string,
+  now = Date.now(),
+): string {
+  const label = `valid until ${formatDateTime(expiresAt)}`;
+  const remaining = new Date(expiresAt).getTime() - now;
+
+  if (!Number.isFinite(remaining) || remaining > EXPIRY_WARNING_MS) {
+    return label;
+  }
+
+  return pc.yellow(`${label} (expiring soon, run lumida login to renew)`);
 }
 
 function formatDateTime(value: string): string {

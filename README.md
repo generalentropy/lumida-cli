@@ -34,6 +34,7 @@ lumida login
 lumida status
 lumida summary
 lumida summary --date 2026-07-01
+lumida summary --date yesterday
 lumida summary --days 30
 lumida sleep --days 7
 lumida logout
@@ -45,6 +46,7 @@ lumida logout
 - `status` shows the account, CLI session expiration, and Google Health status.
 - `summary` shows a compact health summary for the last 24 hours.
 - `summary --date <YYYY-MM-DD>` shows the summary for one local calendar day.
+  It also accepts `today` and `yesterday`, resolved in your own time zone.
 - `summary --days <number>` summarizes a rolling window of 1 to 90 days.
 - `sleep --days <number>` shows sleep history for 1 to 365 days. It defaults to
   7 days.
@@ -61,6 +63,22 @@ lumida sleep --days 365
 lumida summary --date 2026-07-01
 lumida summary --days 7
 ```
+
+### Relative dates
+
+`--date` accepts `today` and `yesterday`, resolved in your own time zone:
+
+```bash
+lumida summary --date yesterday --json
+```
+
+This exists for scheduled jobs. Computing the previous day in the shell is not
+portable: GNU `date` writes it `-d yesterday`, BSD `date` writes it `-v-1d`, so
+one cron line cannot serve both.
+
+Nothing else is accepted. A form such as `-3d` would be read as an option
+rather than as the value of `--date`, and `--days` already covers rolling
+windows.
 
 ### Why summaries stop at 90 days
 
@@ -88,9 +106,9 @@ can tell "no data" from "not connected":
 ```bash
 lumida summary --json | jq .steps
 
-# Average night over the last month, in hours
+# Nights under seven hours over the last month
 lumida sleep --days 30 --json \
-  | jq '[.sessions[] | select(.isNap | not) | .minutesAsleep] | add / length / 60'
+  | jq '[.sessions[] | select(.isNap | not) | select(.minutesAsleep < 420)] | length'
 
 # Status bar, silently ignoring a disconnected CLI
 lumida summary --json 2>/dev/null | jq -r '"\(.steps) steps"' || true
@@ -109,12 +127,12 @@ parsing a message:
 ```
 
 With no stored session it prints `{ "connected": false }` and exits
-successfully — not being connected is an answer, not a failure.
+successfully. Not being connected is an answer, not a failure.
 
 ## Sleep trend
 
 `sleep` renders a `Trend` column: one bar per night, scaled to the longest night
-of the period, so two rows can be compared at a glance.
+of the period.
 
 ```
   Date          Type    Duration    Time                Trend
@@ -124,18 +142,24 @@ of the period, so two rows can be compared at a glance.
   Aug 1, 2026   Sleep   8 h 05 min  10:40 PM – 6:45 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
   Jul 31, 2026  Sleep   5 h 30 min  11:50 PM – 5:20 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄
   Jul 30, 2026  Sleep   7 h 50 min  11:05 PM – 7:10 AM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  ──────────────────────────────────────
+  Average night         7 h 01 min
+  Nights recorded       5 of 7
+  Naps                  1
 ```
 
-Bars are capped at 20 characters so a long series never breaks the layout, and
-a short night keeps a minimum length so it stays readable. A night without a
-measured duration draws nothing at all, which reads as "not measured" rather
-than as a zero.
+A night without a measured duration draws no bar.
+
+Over more than one day, the table ends on its aggregates. Read `Nights
+recorded` first: a night with no data has no row at all, so nothing else in the
+table tells you the period is incomplete. Naps are counted apart and left out of
+the average.
 
 ## Privacy
 
 The CLI is read-only. Its session can never modify your account, disconnect
 Google Health, or reach administration features, and the server returns only
-the aggregated values shown above — no workout identifiers, GPS traces, sleep
+the aggregated values shown above: no workout identifiers, GPS traces, sleep
 segments, or device identifiers.
 
 Your session token is stored only in your operating system's credential vault

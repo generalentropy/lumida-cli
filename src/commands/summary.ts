@@ -47,7 +47,10 @@ export function registerSummaryCommand(
   program
     .command("summary")
     .description("Show a health summary")
-    .option("--date <date>", "Calendar date in YYYY-MM-DD format")
+    .option(
+      "--date <date>",
+      "Calendar date in YYYY-MM-DD format, or today or yesterday",
+    )
     .option(
       "-d, --days <number>",
       `Number of days to summarize, from 1 to ${MAX_SUMMARY_DAYS}`,

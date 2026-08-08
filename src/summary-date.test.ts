@@ -32,4 +32,30 @@ describe("createSummaryDateRange", () => {
       /non-future/,
     );
   });
+
+  it.each([
+    ["today", "2026-07-24"],
+    ["yesterday", "2026-07-23"],
+    ["  Yesterday  ", "2026-07-23"],
+  ])("resolves %j to the local calendar day %s", (value, expected) => {
+    const range = createSummaryDateRange(value, now);
+
+    expect(range.date).toBe(expected);
+    expect(range.from).toMatch(
+      new RegExp(`^${expected}T00:00:00[+-]\\d{2}:\\d{2}$`),
+    );
+  });
+
+  it("resolves yesterday across a month boundary", () => {
+    expect(
+      createSummaryDateRange("yesterday", new Date(2026, 7, 1, 0, 30)).date,
+    ).toBe("2026-07-31");
+  });
+
+  it.each(["tomorrow", "yester-day", "now"])(
+    "rejects unknown relative form %j",
+    (value) => {
+      expect(() => createSummaryDateRange(value, now)).toThrow(/YYYY-MM-DD/);
+    },
+  );
 });
