@@ -1,0 +1,4 @@
+{
+  "cooldown": "7d",
+  "format": ["group", "ownerChanged", "time", "cooldown"]
+}
